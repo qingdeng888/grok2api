@@ -234,6 +234,7 @@ func boundWebMediaDiagnostic(value string, limit int) string {
 }
 
 func (a *Adapter) GenerateVideo(ctx context.Context, request provider.VideoRequest) (provider.VideoResult, error) {
+	ctx = egress.WithForceDirect(ctx)
 	cfg := a.config()
 	token, err := a.cipher.Decrypt(request.Credential.EncryptedAccessToken)
 	if err != nil {
@@ -325,6 +326,7 @@ func (a *Adapter) prepareVideoReference(ctx context.Context, cfg Config, lease *
 // session. Direct asset URLs are not public and must not be exposed as a
 // substitute for this authenticated transfer.
 func (a *Adapter) DownloadVideo(ctx context.Context, credential account.Credential, rawURL string) (io.ReadCloser, string, int64, error) {
+	ctx = egress.WithForceDirect(ctx)
 	parsed, err := url.Parse(strings.TrimSpace(rawURL))
 	if err != nil || parsed.Scheme != "https" || !trustedImageAssetHost(parsed.Hostname()) || parsed.User != nil {
 		return nil, "", 0, fmt.Errorf("视频内容 URL 不受信任")

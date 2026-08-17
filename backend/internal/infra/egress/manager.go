@@ -61,6 +61,20 @@ var errNodeSnapshotInvalidated = errors.New("egress node snapshot invalidated")
 var errClientCacheInvalidated = errors.New("egress client cache invalidated")
 var errAccountConnectionIsolationDisabled = errors.New("egress account connection isolation disabled")
 
+type forceDirectContextKey struct{}
+
+// WithForceDirect disables global, node, and environment proxies for the
+// complete outbound call chain rooted at ctx. Media operations use this to
+// keep large uploads and downloads off metered proxy links.
+func WithForceDirect(ctx context.Context) context.Context {
+	return context.WithValue(ctx, forceDirectContextKey{}, true)
+}
+
+func forceDirect(ctx context.Context) bool {
+	value, _ := ctx.Value(forceDirectContextKey{}).(bool)
+	return value
+}
+
 type Lease struct {
 	NodeID           uint64
 	NodeName         string
@@ -241,8 +255,9 @@ func NewManager(repository repository.EgressRepository, cipher *security.Cipher)
 	return manager
 }
 
-// UpdateGlobalProxy makes the configured proxy the final process egress for all
-// Provider traffic. Enabling it intentionally overrides per-node proxies.
+// UpdateGlobalProxy makes the configured proxy the final process egress for
+// ordinary Provider traffic. Media operations may explicitly force direct
+// transport to keep large uploads and downloads off metered proxy links.
 func (m *Manager) UpdateGlobalProxy(proxyURL string) {
 	proxyURL = strings.TrimSpace(proxyURL)
 	previous, _ := m.globalProxyURL.Load().(string)
@@ -260,7 +275,10 @@ func (m *Manager) UpdateGlobalProxy(proxyURL string) {
 	closeRequestClients(stale)
 }
 
-func (m *Manager) effectiveProxyURL(nodeProxyURL string) string {
+func (m *Manager) effectiveProxyURL(ctx context.Context, nodeProxyURL string) string {
+	if forceDirect(ctx) {
+		return ""
+	}
 	if value, _ := m.globalProxyURL.Load().(string); value != "" {
 		return value
 	}
@@ -711,7 +729,7 @@ func (m *Manager) probeEgressEndpoint(ctx context.Context, target preparedEgress
 	if clientFactory == nil {
 		clientFactory = newBuildRequestClient
 	}
-	client, err := clientFactory(m.effectiveProxyURL(target.proxyURL), egressProbeTimeout)
+	client, err := clientFactory(m.effectiveProxyURL(ctx, target.proxyURL), egressProbeTimeout)
 	if err != nil {
 		result.Error = "创建代理连接失败"
 		return result, err
@@ -1137,8 +1155,13 @@ func (m *Manager) leaseForNodeWithOptions(ctx context.Context, scope domain.Scop
 			return nil, false, err
 		}
 	}
-	proxyURL = m.effectiveProxyURL(proxyURL)
-	if global, _ := m.globalProxyURL.Load().(string); global != "" {
+	proxyURL = m.effectiveProxyURL(ctx, proxyURL)
+	if forceDirect(ctx) {
+		sticky = false
+		proxyPool = false
+		freshTunnel = false
+		options.buildEnvironmentProxy = false
+	} else if global, _ := m.globalProxyURL.Load().(string); global != "" {
 		sticky = false
 		proxyPool = false
 		freshTunnel = false

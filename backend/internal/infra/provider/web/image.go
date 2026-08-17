@@ -275,6 +275,7 @@ func numberAsInt(value any) (int, bool) {
 }
 
 func (a *Adapter) GenerateImage(ctx context.Context, request provider.ImageGenerationRequest) (*provider.Response, error) {
+	ctx = egress.WithForceDirect(ctx)
 	if strings.TrimSpace(request.Quality) != "" {
 		return invalidImageRequest("Grok Web 图片模型不支持 quality")
 	}
@@ -792,6 +793,7 @@ func (a *Adapter) generateWSImageAttempt(ctx context.Context, request provider.I
 // response. Reacquiring the lease is required because the failed lease keeps
 // the immutable browser-session cookies that were rejected upstream.
 func (a *Adapter) EditImage(ctx context.Context, request provider.ImageEditRequest) (*provider.Response, error) {
+	ctx = egress.WithForceDirect(ctx)
 	for attempt := 0; attempt < 2; attempt++ {
 		response, err := a.editImageAttempt(ctx, request)
 		if err == nil {

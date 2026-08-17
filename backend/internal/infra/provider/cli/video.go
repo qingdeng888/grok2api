@@ -156,6 +156,7 @@ func boundDiagnosticText(value string, limit int) string {
 // 显式模式优先；auto 下仅已确认 Super 且 bot_flag_source/bfs 为 1 或 2 默认使用 XAI。
 // 其他 auto Super 账号仅在当次 Build 创建返回 403 后探测 XAI。
 func (a *Adapter) GenerateVideo(ctx context.Context, request provider.VideoRequest) (provider.VideoResult, error) {
+	ctx = infraegress.WithForceDirect(ctx)
 	if total := buildVideoImageCount(request); total > buildVideoMaxImages {
 		return provider.VideoResult{}, provider.WrapVideoStage(provider.VideoStagePrepare, 0, fmt.Errorf("Build grok-imagine-video-1.5 最多支持 %d 张输入图，当前为 %d 张", buildVideoMaxImages, total))
 	}
@@ -245,6 +246,7 @@ func (a *Adapter) generateVideoOnXAI(ctx context.Context, request provider.Video
 // DownloadVideo 通过 Build egress 拉取已完成任务的公开 CDN URL。
 // 资源域不需要 OAuth；不得解密或转发 token 与客户端身份头。
 func (a *Adapter) DownloadVideo(ctx context.Context, credential account.Credential, rawURL string) (io.ReadCloser, string, int64, error) {
+	ctx = infraegress.WithForceDirect(ctx)
 	parsed, err := url.Parse(strings.TrimSpace(rawURL))
 	if err != nil || parsed.Scheme != "https" || parsed.User != nil || !trustedBuildVideoAssetHost(parsed.Hostname()) {
 		return nil, "", 0, fmt.Errorf("视频内容 URL 不受信任")

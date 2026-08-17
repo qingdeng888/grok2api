@@ -86,6 +86,7 @@ func (e *consoleMediaUpstreamError) PublicErrorMessage() string {
 }
 
 func (a *Adapter) GenerateImage(ctx context.Context, request provider.ImageGenerationRequest) (*provider.Response, error) {
+	ctx = infraegress.WithForceDirect(ctx)
 	if !ResolveMedia(request.Model, modeldomain.CapabilityImage) {
 		return invalidConsoleMediaRequest("模型不支持 Console 图片生成"), nil
 	}
@@ -129,6 +130,7 @@ func (a *Adapter) GenerateImage(ctx context.Context, request provider.ImageGener
 }
 
 func (a *Adapter) EditImage(ctx context.Context, request provider.ImageEditRequest) (*provider.Response, error) {
+	ctx = infraegress.WithForceDirect(ctx)
 	if !ResolveMedia(request.Model, modeldomain.CapabilityImageEdit) {
 		return invalidConsoleMediaRequest("模型不支持 Console 图片编辑"), nil
 	}
@@ -442,6 +444,7 @@ func trustedConsoleImageHost(host string) bool {
 }
 
 func (a *Adapter) GenerateVideo(ctx context.Context, request provider.VideoRequest) (provider.VideoResult, error) {
+	ctx = infraegress.WithForceDirect(ctx)
 	modelName := strings.TrimSpace(request.Model)
 	if modelName == "" {
 		modelName = "grok-imagine-video"
@@ -679,6 +682,7 @@ func (a *Adapter) doConsoleVideoJSON(ctx context.Context, credential account.Cre
 }
 
 func (a *Adapter) DownloadVideo(ctx context.Context, credential account.Credential, rawURL string) (io.ReadCloser, string, int64, error) {
+	ctx = infraegress.WithForceDirect(ctx)
 	parsed, err := url.Parse(strings.TrimSpace(rawURL))
 	if err != nil || parsed.Scheme != "https" || parsed.User != nil || !trustedConsoleVideoHost(parsed.Hostname()) {
 		return nil, "", 0, errors.New("Console 视频内容 URL 不受信任")
