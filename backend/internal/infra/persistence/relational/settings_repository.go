@@ -16,8 +16,9 @@ import (
 const runtimeSettingsKey = "gateway"
 
 type runtimeSettingsPayload struct {
-	Config                      settingsdomain.Config `json:"config"`
-	EncryptedStatsigManualValue string                `json:"encryptedStatsigManualValue,omitempty"`
+	Config                       settingsdomain.Config `json:"config"`
+	EncryptedStatsigManualValue  string                `json:"encryptedStatsigManualValue,omitempty"`
+	EncryptedGlobalProxyPassword string                `json:"encryptedGlobalProxyPassword,omitempty"`
 }
 
 type RuntimeSettingsRepository struct {
@@ -47,6 +48,11 @@ func (r *RuntimeSettingsRepository) Get(ctx context.Context) (settingsdomain.Con
 		return settingsdomain.Config{}, time.Time{}, 0, false, fmt.Errorf("解密 Statsig 手动值: %w", err)
 	}
 	payload.Config.ProviderWeb.StatsigManualValue = manualValue
+	proxyPassword, err := r.cipher.Decrypt(payload.EncryptedGlobalProxyPassword)
+	if err != nil {
+		return settingsdomain.Config{}, time.Time{}, 0, false, fmt.Errorf("解密全局代理密码: %w", err)
+	}
+	payload.Config.GlobalProxy.Password = proxyPassword
 	return payload.Config, row.UpdatedAt, row.Revision, true, nil
 }
 
@@ -56,7 +62,12 @@ func (r *RuntimeSettingsRepository) Save(ctx context.Context, value settingsdoma
 		return time.Time{}, 0, fmt.Errorf("加密 Statsig 手动值: %w", err)
 	}
 	value.ProviderWeb.StatsigManualValue = ""
-	payload, err := json.Marshal(runtimeSettingsPayload{Config: value, EncryptedStatsigManualValue: manualValue})
+	proxyPassword, err := r.cipher.Encrypt(value.GlobalProxy.Password)
+	if err != nil {
+		return time.Time{}, 0, fmt.Errorf("加密全局代理密码: %w", err)
+	}
+	value.GlobalProxy.Password = ""
+	payload, err := json.Marshal(runtimeSettingsPayload{Config: value, EncryptedStatsigManualValue: manualValue, EncryptedGlobalProxyPassword: proxyPassword})
 	if err != nil {
 		return time.Time{}, 0, fmt.Errorf("编码运行设置: %w", err)
 	}

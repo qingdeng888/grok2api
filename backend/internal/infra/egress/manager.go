@@ -156,6 +156,7 @@ type Manager struct {
 	buildHeaderTimeout     atomic.Int64
 	buildStreamIdleTimeout atomic.Int64
 	accountIsolated        atomic.Bool
+	globalProxyURL         atomic.Value
 	operationsConfig       cachedOperationsConfig
 	operationsConfigLoad   singleflight.Group
 	operationsConfigVer    uint64
@@ -236,7 +237,34 @@ func NewManager(repository repository.EgressRepository, cipher *security.Cipher)
 	}
 	manager.buildHeaderTimeout.Store(int64(settingsdomain.DefaultBuildResponseHeaderTimeout))
 	manager.buildStreamIdleTimeout.Store(int64(settingsdomain.DefaultBuildStreamIdleTimeout))
+	manager.globalProxyURL.Store("")
 	return manager
+}
+
+// UpdateGlobalProxy makes the configured proxy the final process egress for all
+// Provider traffic. Enabling it intentionally overrides per-node proxies.
+func (m *Manager) UpdateGlobalProxy(proxyURL string) {
+	proxyURL = strings.TrimSpace(proxyURL)
+	previous, _ := m.globalProxyURL.Load().(string)
+	if previous == proxyURL {
+		return
+	}
+	m.globalProxyURL.Store(proxyURL)
+	m.clientMu.Lock()
+	stale := make([]requestClient, 0, len(m.clients))
+	for key, cached := range m.clients {
+		stale = append(stale, m.evictClientLocked(key, cached))
+	}
+	m.invalidateAllClientVersionsLocked()
+	m.clientMu.Unlock()
+	closeRequestClients(stale)
+}
+
+func (m *Manager) effectiveProxyURL(nodeProxyURL string) string {
+	if value, _ := m.globalProxyURL.Load().(string); value != "" {
+		return value
+	}
+	return nodeProxyURL
 }
 
 func (m *Manager) SetLogger(logger *slog.Logger) {
@@ -683,7 +711,7 @@ func (m *Manager) probeEgressEndpoint(ctx context.Context, target preparedEgress
 	if clientFactory == nil {
 		clientFactory = newBuildRequestClient
 	}
-	client, err := clientFactory(target.proxyURL, egressProbeTimeout)
+	client, err := clientFactory(m.effectiveProxyURL(target.proxyURL), egressProbeTimeout)
 	if err != nil {
 		result.Error = "创建代理连接失败"
 		return result, err
@@ -1108,6 +1136,13 @@ func (m *Manager) leaseForNodeWithOptions(ctx context.Context, scope domain.Scop
 		if err != nil {
 			return nil, false, err
 		}
+	}
+	proxyURL = m.effectiveProxyURL(proxyURL)
+	if global, _ := m.globalProxyURL.Load().(string); global != "" {
+		sticky = false
+		proxyPool = false
+		freshTunnel = false
+		options.buildEnvironmentProxy = false
 	}
 	cookies := ""
 	if usesBrowserClearance(scope) {

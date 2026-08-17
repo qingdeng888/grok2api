@@ -84,6 +84,16 @@ media:
     # [按需修改] 图片二进制目录；数据库只保存资源元数据。
     path: "./data/media"
 
+# [按需修改] 全局 Provider 出口代理。关闭时沿用账号出口节点或直连。
+# 启用后会覆盖账号出口节点，所有 Build/Web/Console 及其媒体请求统一走此代理。
+globalProxy:
+  enabled: false
+  scheme: http # http | socks5 | socks5h
+  host: ""
+  port: 0
+  username: ""
+  password: ""
+
 routing:
   # [按需修改] 服务端推理回放缓存：多轮时自动补回客户端未携带的 encrypted_content。
   reasoningReplayEnabled: true

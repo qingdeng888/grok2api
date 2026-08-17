@@ -132,6 +132,14 @@ export const settingsSchema = z.object({
     cleanupThresholdPercent: z.number().int().min(50).max(95),
     cleanupInterval: durationSchema.refine((value) => durationSeconds(value) >= 60 && durationSeconds(value) <= 86_400),
   }).refine((value) => byteSizeBytes(value.maxTotalSize) >= byteSizeBytes(value.maxImageSize), { path: ["maxTotalSize"] }),
+  globalProxy: z.object({
+    enabled: z.boolean(), scheme: z.enum(["http", "socks5", "socks5h"]), host: z.string().trim().max(253),
+    port: z.number().int().min(0).max(65535), username: z.string().trim().max(255), password: z.string().max(1024), passwordConfigured: z.boolean(),
+  }).superRefine((value, context) => {
+    if (value.enabled && !value.host) context.addIssue({ code: "custom", path: ["host"], message: "invalid" });
+    if (value.enabled && value.port < 1) context.addIssue({ code: "custom", path: ["port"], message: "invalid" });
+    if (value.password && !value.username) context.addIssue({ code: "custom", path: ["username"], message: "invalid" });
+  }),
   frontend: z.object({
     publicApiBaseURL: z.string().trim().max(2048).refine((value) => validPublicAPIBaseURL(value), { message: "invalid" }),
   }),
@@ -198,6 +206,7 @@ export function toSettingsForm(config: SettingsConfigDTO): SettingsForm {
       cleanupThresholdPercent: config.media.cleanupThresholdPercent,
       cleanupInterval: parseDuration(config.media.cleanupInterval),
     },
+    globalProxy: { ...config.globalProxy, scheme: config.globalProxy.scheme || "http", password: "" },
     frontend: {
       publicApiBaseURL: config.frontend.publicApiBaseURL,
     },
@@ -241,6 +250,7 @@ export function toSettingsDTO(config: SettingsForm): SettingsConfigDTO {
       cleanupThresholdPercent: config.media.cleanupThresholdPercent,
       cleanupInterval: formatDuration(config.media.cleanupInterval),
     },
+    globalProxy: { ...config.globalProxy, host: config.globalProxy.host.trim(), username: config.globalProxy.username.trim() },
     frontend: {
       publicApiBaseURL: config.frontend.publicApiBaseURL.trim(),
     },

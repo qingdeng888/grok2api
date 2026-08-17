@@ -86,6 +86,35 @@ bootstrapAdmin:
 	}
 }
 
+func TestGlobalProxyURLAndValidation(t *testing.T) {
+	cfg := defaultConfig()
+	cfg.Secrets.JWTSecret = "12345678901234567890123456789012"
+	cfg.Secrets.CredentialEncryptionKey = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+	cfg.BootstrapAdmin.Password = "password123"
+	cfg.GlobalProxy = GlobalProxyConfig{
+		Enabled: true, Scheme: "socks5h", Host: "2001:db8::1", Port: 1080,
+		Username: "proxy user", Password: "p@ss/word",
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := cfg.GlobalProxy.URL(), "socks5h://proxy%20user:p%40ss%2Fword@[2001:db8::1]:1080"; got != want {
+		t.Fatalf("GlobalProxy.URL() = %q, want %q", got, want)
+	}
+	cfg.GlobalProxy.Scheme = "ftp"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("unsupported global proxy scheme was accepted")
+	}
+}
+
+func TestDisabledGlobalProxyUsesDirectMode(t *testing.T) {
+	cfg := defaultConfig()
+	cfg.GlobalProxy = GlobalProxyConfig{Enabled: false, Scheme: "http", Host: "proxy.internal", Port: 8080}
+	if got := cfg.GlobalProxy.URL(); got != "" {
+		t.Fatalf("disabled GlobalProxy.URL() = %q, want empty", got)
+	}
+}
+
 func TestLoadRejectsInvalidDatabaseEnvironmentURLWithoutLeakingCredentials(t *testing.T) {
 	tests := []struct {
 		name    string

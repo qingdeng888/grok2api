@@ -180,3 +180,15 @@ func TestLegacySettingsRequestMayOmitManagedClearance(t *testing.T) {
 		t.Fatal("missing managed-clearance fields were treated as an explicit update")
 	}
 }
+
+func TestSettingsResponseDoesNotExposeGlobalProxyPassword(t *testing.T) {
+	response := newSettingsResponse(settingsapp.Snapshot{Config: settingsapp.EditableConfig{
+		GlobalProxy: settingsapp.GlobalProxyConfig{
+			Enabled: true, Scheme: "http", Host: "proxy.internal", Port: 8080,
+			Username: "proxy-user", Password: "secret", PasswordConfigured: true,
+		},
+	}})
+	if response.Config.GlobalProxy.Password != "" || !response.Config.GlobalProxy.PasswordConfigured {
+		t.Fatalf("global proxy password disclosure state = %#v", response.Config.GlobalProxy)
+	}
+}

@@ -25,11 +25,21 @@ type Config struct {
 	ProviderConsole   ProviderConsoleConfig
 	Batch             BatchConfig
 	Media             MediaConfig
+	GlobalProxy       GlobalProxyConfig
 	Frontend          FrontendConfig
 	Routing           RoutingConfig
 	Audit             AuditConfig
 	ClientKeyDefaults ClientKeyDefaultsConfig
 	Accounts          AccountsConfig
+}
+
+type GlobalProxyConfig struct {
+	Enabled  bool
+	Scheme   string
+	Host     string
+	Port     int
+	Username string
+	Password string
 }
 
 // ServerConfig 定义可热更新的推理入口容量参数。
@@ -98,10 +108,10 @@ type ProviderBuildConfig struct {
 
 // RoutingConfig 定义会话粘性、冷却和故障切换边界。
 type RoutingConfig struct {
-	StickyTTL       time.Duration
-	CooldownBase    time.Duration
-	CooldownMax     time.Duration
-	CapacityWait    time.Duration
+	StickyTTL        time.Duration
+	CooldownBase     time.Duration
+	CooldownMax      time.Duration
+	CapacityWait     time.Duration
 	MaxAttempts      int
 	VideoMaxAttempts int
 	PreferFreeBuild  bool

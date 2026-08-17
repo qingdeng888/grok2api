@@ -205,6 +205,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Applicat
 	egressManager.SetLogger(logger)
 	egressManager.SetClearanceLock(refreshLock)
 	egressManager.UpdateClearanceConfig(clearanceConfig(cfg))
+	egressManager.UpdateGlobalProxy(cfg.GlobalProxy.URL())
 	egressManager.UpdateBuildResponseHeaderTimeout(cfg.Provider.Build.ResponseHeaderTimeout.Value())
 	egressManager.UpdateBuildStreamIdleTimeout(cfg.Provider.Build.StreamIdleTimeout.Value())
 	cliAdapter := cliprovider.NewAdapter(cliprovider.Config{
@@ -394,6 +395,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Applicat
 		egressManager.UpdateBuildStreamIdleTimeout(next.Provider.Build.StreamIdleTimeout.Value())
 		webAdapter.UpdateConfig(webProviderConfig(next))
 		egressManager.UpdateClearanceConfig(clearanceConfig(next))
+		egressManager.UpdateGlobalProxy(next.GlobalProxy.URL())
 		consoleAdapter.UpdateConfig(consoleProviderConfig(next))
 		mediaService.UpdateConfig(mediaConfig(next))
 		quotaRecoveryService.UpdateConfig(next.Provider.Web.RecoveryBackoffBase.Value(), next.Provider.Web.RecoveryBackoffMax.Value())

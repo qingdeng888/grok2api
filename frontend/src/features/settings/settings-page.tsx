@@ -31,6 +31,7 @@ export function SettingsPage() {
   const autoCleanEnabled = form.watch("accounts.autoCleanReauthEnabled") === true;
   const buildForbiddenReauthEnabled = form.watch("accounts.markBuildForbiddenReauth") === true;
   const segmentedSelectorEnabled = form.watch("routing.segmentedSelector.enabled") === true;
+  const globalProxyEnabled = form.watch("globalProxy.enabled") === true;
 
   if (settingsQuery.isError) {
     return <ErrorState message={settingsQuery.error.message} onRetry={() => void settingsQuery.refetch()} />;
@@ -184,6 +185,23 @@ export function SettingsPage() {
               <SettingsField controlId="frontend-public-api-base-url" label={t("settings.media.publicApiBaseURL")} description={t("settings.media.publicApiBaseURLHelp")} error={form.formState.errors.frontend?.publicApiBaseURL?.message} className="sm:col-span-2">
                 <Input id="frontend-public-api-base-url" placeholder="https://api.example.com" {...form.register("frontend.publicApiBaseURL")} />
               </SettingsField>
+            </div>
+          </SettingsSection>
+
+          <SettingsSection title={t("settings.globalProxy.title")}>
+            <div className="space-y-0">
+              <SettingsField controlId="global-proxy-enabled" label={t("settings.globalProxy.enabled")} description={t("settings.globalProxy.enabledHelp")}>
+                <Controller control={form.control} name="globalProxy.enabled" render={({ field }) => <Switch id="global-proxy-enabled" checked={field.value} onCheckedChange={field.onChange} />} />
+              </SettingsField>
+              {globalProxyEnabled ? <>
+                <SettingsField controlId="global-proxy-scheme" label={t("settings.globalProxy.scheme")} error={form.formState.errors.globalProxy?.scheme?.message}>
+                  <Controller control={form.control} name="globalProxy.scheme" render={({ field }) => <Select value={field.value} onValueChange={field.onChange}><SelectTrigger id="global-proxy-scheme"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="http">HTTP</SelectItem><SelectItem value="socks5">SOCKS5</SelectItem><SelectItem value="socks5h">SOCKS5H</SelectItem></SelectContent></Select>} />
+                </SettingsField>
+                <SettingsField controlId="global-proxy-host" label={t("settings.globalProxy.host")} error={form.formState.errors.globalProxy?.host?.message}><Input id="global-proxy-host" placeholder="127.0.0.1" {...form.register("globalProxy.host")} /></SettingsField>
+                <SettingsField controlId="global-proxy-port" label={t("settings.globalProxy.port")} error={form.formState.errors.globalProxy?.port?.message}><Input id="global-proxy-port" type="number" min={1} max={65535} {...form.register("globalProxy.port", { valueAsNumber: true })} /></SettingsField>
+                <SettingsField controlId="global-proxy-username" label={t("settings.globalProxy.username")} error={form.formState.errors.globalProxy?.username?.message}><Input id="global-proxy-username" autoComplete="off" {...form.register("globalProxy.username")} /></SettingsField>
+                <SettingsField controlId="global-proxy-password" label={t("settings.globalProxy.password")} description={form.watch("globalProxy.passwordConfigured") ? t("settings.globalProxy.keepPassword") : undefined} error={form.formState.errors.globalProxy?.password?.message}><Input id="global-proxy-password" type="password" autoComplete="new-password" {...form.register("globalProxy.password")} /></SettingsField>
+              </> : null}
             </div>
           </SettingsSection>
 

@@ -68,6 +68,21 @@ func TestForgetClearancesEvictsSelectedNodesInOneBatch(t *testing.T) {
 	}
 }
 
+func TestGlobalProxyOverridesNodeProxy(t *testing.T) {
+	manager := NewManager(nil, nil)
+	if got := manager.effectiveProxyURL("http://node.proxy:8080"); got != "http://node.proxy:8080" {
+		t.Fatalf("proxy before global override = %q", got)
+	}
+	manager.UpdateGlobalProxy("socks5://global.proxy:1080")
+	if got := manager.effectiveProxyURL("http://node.proxy:8080"); got != "socks5://global.proxy:1080" {
+		t.Fatalf("proxy with global override = %q", got)
+	}
+	manager.UpdateGlobalProxy("")
+	if got := manager.effectiveProxyURL("http://node.proxy:8080"); got != "http://node.proxy:8080" {
+		t.Fatalf("proxy after disabling global override = %q", got)
+	}
+}
+
 func TestBuildResponseHeaderTimeoutHotUpdateRebuildsCachedClients(t *testing.T) {
 	manager := NewManager(egressRepositoryTestStub{}, nil)
 	var observed []time.Duration

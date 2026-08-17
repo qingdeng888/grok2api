@@ -18,6 +18,7 @@ export type SettingsConfigDTO = {
     maxImageBytes: number; maxTotalBytes: number; cleanupThresholdPercent: number;
     cleanupInterval: string;
   };
+  globalProxy: { enabled: boolean; scheme: "http" | "socks5" | "socks5h"; host: string; port: number; username: string; password?: string; passwordConfigured: boolean };
   frontend: { publicApiBaseURL: string };
   routing: {
     stickyTTL: string; cooldownBase: string; cooldownMax: string; capacityWait: string; maxAttempts: number; videoMaxAttempts: number; preferFreeBuild: boolean; markBuildChatDeniedAsReauth: boolean;
@@ -112,6 +113,7 @@ const settingsConfigValidator = hasShape({
   providerConsole: hasShape({ baseURL: isString, chatTimeout: isString, streamIdleTimeout: isOptional(isString) }),
   batch: hasShape({ importConcurrency: isNumber, conversionConcurrency: isNumber, syncConcurrency: isNumber, refreshConcurrency: isNumber, randomDelay: isString }),
   media: hasShape({ maxImageBytes: isNumber, maxTotalBytes: isNumber, cleanupThresholdPercent: isNumber, cleanupInterval: isString }),
+  globalProxy: hasShape({ enabled: isBoolean, scheme: isOneOf("http", "socks5", "socks5h"), host: isString, port: isNumber, username: isString, password: isOptional(isString), passwordConfigured: isBoolean }),
   frontend: hasShape({ publicApiBaseURL: isString }),
   routing: hasShape({
     stickyTTL: isString, cooldownBase: isString, cooldownMax: isString, capacityWait: isString, maxAttempts: isNumber, videoMaxAttempts: isNumber, preferFreeBuild: isBoolean, markBuildChatDeniedAsReauth: isBoolean,

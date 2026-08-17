@@ -27,11 +27,22 @@ type settingsConfigDTO struct {
 	ProviderConsole   providerConsoleConfigDTO   `json:"providerConsole"`
 	Batch             batchConfigDTO             `json:"batch"`
 	Media             mediaConfigDTO             `json:"media"`
+	GlobalProxy       globalProxyConfigDTO       `json:"globalProxy"`
 	Frontend          frontendConfigDTO          `json:"frontend"`
 	Routing           routingConfigDTO           `json:"routing"`
 	Audit             auditConfigDTO             `json:"audit"`
 	ClientKeyDefaults clientKeyDefaultsConfigDTO `json:"clientKeyDefaults"`
 	Accounts          *accountsConfigDTO         `json:"accounts,omitempty"`
+}
+
+type globalProxyConfigDTO struct {
+	Enabled            bool   `json:"enabled"`
+	Scheme             string `json:"scheme"`
+	Host               string `json:"host"`
+	Port               int    `json:"port"`
+	Username           string `json:"username"`
+	Password           string `json:"password,omitempty"`
+	PasswordConfigured bool   `json:"passwordConfigured"`
 }
 
 type serverConfigDTO struct {
@@ -219,6 +230,7 @@ func (value settingsConfigDTO) toApplication() settingsapp.EditableConfig {
 			MaxImageBytes: value.Media.MaxImageBytes, MaxTotalBytes: value.Media.MaxTotalBytes,
 			CleanupThresholdPercent: value.Media.CleanupThresholdPercent, CleanupInterval: value.Media.CleanupInterval,
 		},
+		GlobalProxy: settingsapp.GlobalProxyConfig{Enabled: value.GlobalProxy.Enabled, Scheme: value.GlobalProxy.Scheme, Host: value.GlobalProxy.Host, Port: value.GlobalProxy.Port, Username: value.GlobalProxy.Username, Password: value.GlobalProxy.Password, PasswordConfigured: value.GlobalProxy.PasswordConfigured},
 		Frontend: settingsapp.FrontendConfig{
 			PublicAPIBaseURL: value.Frontend.PublicAPIBaseURL,
 		},
@@ -301,6 +313,7 @@ func newSettingsResponse(value settingsapp.Snapshot) settingsResponse {
 				MaxImageBytes: config.Media.MaxImageBytes, MaxTotalBytes: config.Media.MaxTotalBytes,
 				CleanupThresholdPercent: config.Media.CleanupThresholdPercent, CleanupInterval: config.Media.CleanupInterval,
 			},
+			GlobalProxy: globalProxyConfigDTO{Enabled: config.GlobalProxy.Enabled, Scheme: config.GlobalProxy.Scheme, Host: config.GlobalProxy.Host, Port: config.GlobalProxy.Port, Username: config.GlobalProxy.Username, PasswordConfigured: config.GlobalProxy.PasswordConfigured},
 			Frontend: frontendConfigDTO{
 				PublicAPIBaseURL: config.Frontend.PublicAPIBaseURL,
 			},

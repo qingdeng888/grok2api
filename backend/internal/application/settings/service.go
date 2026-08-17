@@ -87,6 +87,16 @@ type MediaConfig struct {
 	CleanupInterval         string
 }
 
+type GlobalProxyConfig struct {
+	Enabled            bool
+	Scheme             string
+	Host               string
+	Port               int
+	Username           string
+	Password           string
+	PasswordConfigured bool
+}
+
 // FrontendConfig 是管理接口使用的公开 API 地址输入。
 type FrontendConfig struct {
 	PublicAPIBaseURL string
@@ -157,6 +167,7 @@ type EditableConfig struct {
 	ProviderConsole   ProviderConsoleConfig
 	Batch             BatchConfig
 	Media             MediaConfig
+	GlobalProxy       GlobalProxyConfig
 	Frontend          FrontendConfig
 	Routing           RoutingConfig
 	Audit             AuditConfig
@@ -374,6 +385,7 @@ func applyDomainConfig(base config.Config, value settingsdomain.Config) config.C
 	base.Media.MaxTotalBytes = value.Media.MaxTotalBytes
 	base.Media.CleanupThresholdPercent = value.Media.CleanupThresholdPercent
 	base.Media.CleanupInterval = config.Duration(value.Media.CleanupInterval)
+	base.GlobalProxy = config.GlobalProxyConfig{Enabled: value.GlobalProxy.Enabled, Scheme: value.GlobalProxy.Scheme, Host: value.GlobalProxy.Host, Port: value.GlobalProxy.Port, Username: value.GlobalProxy.Username, Password: value.GlobalProxy.Password}
 	base.Frontend.PublicAPIBaseURLOverride = strings.TrimSpace(value.Frontend.PublicAPIBaseURL)
 	segmentedEnabled := base.Routing.SegmentedSelectorEnabled
 	segmentedMinCandidates := base.Routing.SegmentedMinCandidates
@@ -466,6 +478,7 @@ func toDomainConfig(value config.Config) settingsdomain.Config {
 			MaxImageBytes: value.Media.MaxImageBytes, MaxTotalBytes: value.Media.MaxTotalBytes,
 			CleanupThresholdPercent: value.Media.CleanupThresholdPercent, CleanupInterval: value.Media.CleanupInterval.Value(),
 		},
+		GlobalProxy: settingsdomain.GlobalProxyConfig{Enabled: value.GlobalProxy.Enabled, Scheme: value.GlobalProxy.Scheme, Host: value.GlobalProxy.Host, Port: value.GlobalProxy.Port, Username: value.GlobalProxy.Username, Password: value.GlobalProxy.Password},
 		Frontend: settingsdomain.FrontendConfig{
 			PublicAPIBaseURL: value.Frontend.PublicAPIBaseURLOverride,
 		},
@@ -554,6 +567,18 @@ func mergeEditable(current config.Config, input EditableConfig) (config.Config, 
 	next.Media.MaxImageBytes = input.Media.MaxImageBytes
 	next.Media.MaxTotalBytes = input.Media.MaxTotalBytes
 	next.Media.CleanupThresholdPercent = input.Media.CleanupThresholdPercent
+	next.GlobalProxy.Enabled = input.GlobalProxy.Enabled
+	next.GlobalProxy.Scheme = strings.ToLower(strings.TrimSpace(input.GlobalProxy.Scheme))
+	next.GlobalProxy.Host = strings.TrimSpace(input.GlobalProxy.Host)
+	next.GlobalProxy.Port = input.GlobalProxy.Port
+	next.GlobalProxy.Username = strings.TrimSpace(input.GlobalProxy.Username)
+	if next.GlobalProxy.Username == "" {
+		next.GlobalProxy.Password = ""
+	} else if password := input.GlobalProxy.Password; password != "" {
+		next.GlobalProxy.Password = password
+	} else if !input.GlobalProxy.PasswordConfigured {
+		next.GlobalProxy.Password = ""
+	}
 	next.Frontend.PublicAPIBaseURLOverride = strings.TrimSpace(input.Frontend.PublicAPIBaseURL)
 	next.Routing.MaxAttempts = input.Routing.MaxAttempts
 	next.Routing.VideoMaxAttempts = input.Routing.VideoMaxAttempts
@@ -692,6 +717,7 @@ func toEditable(cfg config.Config) EditableConfig {
 			MaxImageBytes: cfg.Media.MaxImageBytes, MaxTotalBytes: cfg.Media.MaxTotalBytes,
 			CleanupThresholdPercent: cfg.Media.CleanupThresholdPercent, CleanupInterval: cfg.Media.CleanupInterval.String(),
 		},
+		GlobalProxy: GlobalProxyConfig{Enabled: cfg.GlobalProxy.Enabled, Scheme: normalizedGlobalProxyScheme(cfg.GlobalProxy.Scheme), Host: cfg.GlobalProxy.Host, Port: cfg.GlobalProxy.Port, Username: cfg.GlobalProxy.Username, PasswordConfigured: cfg.GlobalProxy.Password != ""},
 		Frontend: FrontendConfig{
 			PublicAPIBaseURL: cfg.Frontend.PublicAPIBaseURLOverride,
 		},
@@ -727,6 +753,14 @@ func toEditable(cfg config.Config) EditableConfig {
 		},
 		AccountsProvided: true,
 	}
+}
+
+func normalizedGlobalProxyScheme(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return "http"
+	}
+	return value
 }
 
 func normalizeForbiddenCodes(values []string) []string {

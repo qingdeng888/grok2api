@@ -6,10 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -64,11 +66,36 @@ type Config struct {
 	Provider          ProviderConfig          `yaml:"provider"`
 	Batch             BatchConfig             `yaml:"-"`
 	Media             MediaConfig             `yaml:"media"`
+	GlobalProxy       GlobalProxyConfig       `yaml:"globalProxy"`
 	Routing           RoutingConfig           `yaml:"routing"`
 	Audit             AuditConfig             `yaml:"audit"`
 	QualityGuard      QualityGuardConfig      `yaml:"qualityGuard"`
 	ClientKeyDefaults ClientKeyDefaultsConfig `yaml:"clientKeyDefaults"`
 	Accounts          AccountsConfig          `yaml:"-"`
+}
+
+type GlobalProxyConfig struct {
+	Enabled  bool   `yaml:"enabled"`
+	Scheme   string `yaml:"scheme"`
+	Host     string `yaml:"host"`
+	Port     int    `yaml:"port"`
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
+}
+
+func (c GlobalProxyConfig) URL() string {
+	if !c.Enabled {
+		return ""
+	}
+	user := (*url.Userinfo)(nil)
+	if c.Username != "" {
+		if c.Password != "" {
+			user = url.UserPassword(c.Username, c.Password)
+		} else {
+			user = url.User(c.Username)
+		}
+	}
+	return (&url.URL{Scheme: strings.ToLower(strings.TrimSpace(c.Scheme)), Host: net.JoinHostPort(strings.TrimSpace(c.Host), strconv.Itoa(c.Port)), User: user}).String()
 }
 
 type ServerConfig struct {
@@ -434,6 +461,18 @@ func (c Config) Validate() error {
 	}
 	if c.Server.MaxConcurrentRequests < 1 || c.Server.MaxConcurrentRequests > 100000 {
 		return errors.New("server.maxConcurrentRequests 必须在 1 到 100000 之间")
+	}
+	if c.GlobalProxy.Enabled {
+		scheme := strings.ToLower(strings.TrimSpace(c.GlobalProxy.Scheme))
+		if scheme != "http" && scheme != "socks5" && scheme != "socks5h" {
+			return errors.New("globalProxy.scheme 必须是 http、socks5 或 socks5h")
+		}
+		if strings.TrimSpace(c.GlobalProxy.Host) == "" || c.GlobalProxy.Port < 1 || c.GlobalProxy.Port > 65535 {
+			return errors.New("globalProxy 主机或端口无效")
+		}
+		if c.GlobalProxy.Password != "" && strings.TrimSpace(c.GlobalProxy.Username) == "" {
+			return errors.New("globalProxy.password 需要同时设置用户名")
+		}
 	}
 	for _, item := range []struct {
 		name  string
@@ -821,6 +860,7 @@ func defaultConfig() Config {
 			CleanupThresholdPercent: 80, CleanupInterval: Duration(10 * time.Minute),
 			Local: LocalMediaConfig{Path: "./data/media"},
 		},
+		GlobalProxy: GlobalProxyConfig{Scheme: "http"},
 		Routing: RoutingConfig{
 			StickyTTL:                   Duration(time.Hour),
 			CooldownBase:                Duration(30 * time.Second),
